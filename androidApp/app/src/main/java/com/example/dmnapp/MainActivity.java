@@ -1,6 +1,7 @@
 package com.example.dmnapp;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -61,6 +62,11 @@ public class MainActivity extends AppCompatActivity {
 
         btnPickPhoto.setOnClickListener(v -> getContentLauncher.launch("image/*"));
 
+        findViewById(R.id.btnViewNotes).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, NotesListActivity.class);
+            startActivity(intent);
+        });
+
         btnUpload.setOnClickListener(v -> {
             if (selectedImageUri != null) {
                 uploadNote(selectedImageUri);
@@ -105,7 +111,9 @@ public class MainActivity extends AppCompatActivity {
                     progressDialog.dismiss();
                     if (response.isSuccessful()) {
                         Toast.makeText(MainActivity.this, "Конспект успешно опубликован!", Toast.LENGTH_SHORT).show();
-                        clearFields();
+                        Intent intent = new Intent(MainActivity.this, NotesListActivity.class);
+                        startActivity(intent);
+                        finish();
                     } else if (response.code() == 400) {
                         try {
                             String errorMsg = response.errorBody() != null ? response.errorBody().string() : "Ошибка модерации";

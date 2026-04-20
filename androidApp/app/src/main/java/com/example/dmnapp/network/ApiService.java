@@ -21,7 +21,7 @@ public interface ApiService {
     @GET("/")
     Call<Void> checkConnection();
 
-    @GET("/notes/")
+    @GET("notes/")
     Call<List<Note>> getNotes();
 
     @Multipart
