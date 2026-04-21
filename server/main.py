@@ -1,137 +1,189 @@
-# main.py
-
-import os
-import time
-import sqlite3
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.exceptions import RequestValidationError
-
-# --- Инициализация FastAPI ---
+import sqlite3
+import os
+import uuid
+from datetime import datetime
+from typing import List
+import bcrypt
+import shutil
 
 app = FastAPI()
 
+# Папка для загрузок
+UPLOAD_DIR = "uploads"
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
 
-# Убедись, что путь к папке верный
-upload_path = r"L:\Samsung\DropMeNote\server\uploads"
+app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="static_uploads")
 
-if not os.path.exists(upload_path):
-    os.makedirs(upload_path)
+# --- Настройка и инициализация БД ---
 
-app.mount("/uploads", StaticFiles(directory=upload_path), name="uploads")
+def get_db():
+    conn = sqlite3.connect('notes_v2.db', check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# --- Настройка Базы Данных (sqlite3) ---
-
-DB_NAME = "notes.db"
-
-def setup_database():
-    """Инициализирует базу данных и создает таблицу, если ее нет."""
-    conn = sqlite3.connect(DB_NAME)
+def init_db():
+    conn = sqlite3.connect('notes_v2.db')
     cursor = conn.cursor()
-    # Создаем таблицу notes, если она не существует
-    cursor.execute("""
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    ''')
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            subject TEXT NOT NULL,
-            topic TEXT NOT NULL,
-            grade INTEGER NOT NULL,
-            image_url TEXT NOT NULL
+            subject TEXT,
+            topic TEXT,
+            user_id INTEGER,
+            grade TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
         )
-    """)
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS note_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            note_id INTEGER,
+            image_url TEXT,
+            FOREIGN KEY (note_id) REFERENCES notes (id)
+        )
+    ''')
     conn.commit()
     conn.close()
-    print("ЛОГ: База данных 'notes.db' успешно настроена.")
 
-# --- Обработчики ---
+init_db()
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Обработчик ошибок валидации для отладки."""
-    print(f"ОШИБКА ВАЛИДАЦИИ: {exc.errors()}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors()},
-    )
+# --- ЭНДПОИНТЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ (без изменений) ---
 
-# --- Эндпоинты ---
+@app.post("/register")
+async def register(username: str = Form(...), password: str = Form(...)):
+    salt = bcrypt.gensalt()
+    password_bytes = password.encode('utf-8')
+    hash_pw = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
-@app.post("/upload_note/")
-async def upload_note(
-    grade: int = Form(...),
-    subject: str = Form(...),
-    topic: str = Form(...),
-    image: UploadFile = File(...)
-):
-    """
-    Загружает конспект и сохраняет его в базу данных.
-    Модерация временно отключена для простоты.
-    """
-    # 1. Сохранение файла с уникальным именем
-    upload_dir = "uploads"
-    # Уникальное имя, чтобы файлы не перезаписывались
-    filename = f"note_{int(time.time())}_{image.filename.replace(' ', '_')}"
-    file_path = os.path.join(upload_dir, filename)
-    
-    os.makedirs(upload_dir, exist_ok=True)
-
+    conn = get_db()
+    cursor = conn.cursor()
     try:
-        content = await image.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
-        print(f"ЛОГ: Файл сохранен по адресу: {file_path}")
-    except Exception as e:
-        print(f"ОШИБКА СЕРВЕРА: Не удалось сохранить файл. Ошибка: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось сохранить файл на сервере.")
-    
-    # 2. Сохранение в базу данных (sqlite3)
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO notes (subject, topic, grade, image_url) VALUES (?, ?, ?, ?)",
-            (subject, topic, grade, filename) # Сохраняем только имя файла
-        )
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hash_pw))
         conn.commit()
+        return {"status": "success", "message": "User registered"}
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    finally:
         conn.close()
-        print(f"ЛОГ: Запись для файла '{filename}' успешно создана в БД.")
-    except Exception as e:
-        print(f"ОШИБКА БД: Не удалось создать запись. Ошибка: {e}")
-        # Если запись в БД не удалась, удаляем уже сохраненный файл
-        os.remove(file_path)
-        raise HTTPException(status_code=500, detail="Ошибка сервера при сохранении данных.")
 
-    return {"status": "success", "filename": filename}
+@app.post("/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+    conn.close()
 
+    if user:
+        password_bytes = password.encode('utf-8')
+        hashed_bytes = user['password'].encode('utf-8')
+        if bcrypt.checkpw(password_bytes, hashed_bytes):
+            return {"id": user['id'], "username": user['username']}
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+# --- ЭНДПОИНТЫ ДЛЯ КОНСПЕКТОВ ---
+
+@app.post("/notes/")
+async def create_note(
+        subject: str = Form(...),
+        topic: str = Form(...),
+        user_id: int = Form(...),
+        grade: str = Form(...),
+        images: List[UploadFile] = File(...)
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO notes (subject, topic, user_id, grade) VALUES (?, ?, ?, ?)",
+            (subject, topic, user_id, grade)
+        )
+        note_id = cursor.lastrowid
+        
+        image_urls = []
+        for img in images:
+            # Создаем уникальное имя файла, чтобы избежать конфликтов
+            file_ext = img.filename.split('.')[-1]
+            filename = f"{note_id}_{uuid.uuid4()}.{file_ext}"
+            file_path = os.path.join(UPLOAD_DIR, filename)
+            
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(img.file, buffer)
+            
+            cursor.execute(
+                "INSERT INTO note_images (note_id, image_url) VALUES (?, ?)",
+                (note_id, filename) # Сохраняем только имя файла
+            )
+            image_urls.append(f"/{UPLOAD_DIR}/{filename}")
+
+        conn.commit()
+        return {"status": "success", "note_id": note_id, "images": image_urls}
+    finally:
+        conn.close()
 
 @app.get("/notes/")
-def get_notes():
-    """Возвращает список всех конспектов из базы данных."""
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row  # Позволяет обращаться к колонкам по имени
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, subject, topic, grade, image_url FROM notes")
-        notes = [dict(row) for row in cursor.fetchall()]
-        conn.close()
+def get_all_notes():
+    """
+    Возвращает список всех конспектов, объединяя данные о конспекте
+    со списком его изображений.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Используем LEFT JOIN, чтобы получить все конспекты, даже те, у которых нет картинок
+    query = """
+        SELECT
+            n.id,
+            n.subject,
+            n.topic,
+            n.grade,
+            n.created_at,
+            u.username as author,
+            ni.image_url
+        FROM
+            notes n
+        LEFT JOIN
+            note_images ni ON n.id = ni.note_id
+        LEFT JOIN
+            users u ON n.user_id = u.id
+        ORDER BY
+            n.created_at DESC;
+    """
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Группируем результаты по ID конспекта
+    notes_dict = {}
+    base_url = "static/uploads" # Используем путь, который ожидает клиент
+
+    for row in rows:
+        note_id = row['id']
+        if note_id not in notes_dict:
+            notes_dict[note_id] = {
+                "id": note_id,
+                "subject": row['subject'],
+                "topic": row['topic'],
+                "grade": row['grade'],
+                "author": row['author'],
+                "created_at": row['created_at'],
+                "images": [] # Создаем пустой список для изображений
+            }
         
-        # Добавляем полный URL к картинке
-        base_url = "http://192.168.0.104:8000" # Замените на ваш IP, если нужно
-        for note in notes:
-            note['image_url'] = f"{base_url}/uploads/{note['image_url']}"
-            
-        return notes
-    except Exception as e:
-        print(f"ОШИБКА БД: Не удалось получить список конспектов. Ошибка: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка сервера при чтении данных.")
+        # Добавляем URL изображения, если оно есть
+        if row['image_url']:
+            notes_dict[note_id]['images'].append(f"{base_url}/{row['image_url']}")
 
-# --- Статические файлы ---
-
-# Этот вызов монтирует папку 'uploads' для доступа по URL /uploads
-# Он должен быть в конце файла
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-# --- Запуск ---
-
-# Вызываем настройку БД один раз при старте приложения
-setup_database()
+    # Преобразуем словарь обратно в список
+    return list(notes_dict.values())

@@ -1,57 +1,99 @@
 package com.example.dmnapp;
 
-import android.util.Log;
 import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.dmnapp.models.Note;
 
+import java.util.List;
+
 public class DetailActivity extends AppCompatActivity {
+
+    private static final String BASE_URL = "http://10.0.2.2:8000/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
 
-        ImageView ivDetailPhoto = findViewById(R.id.ivDetailPhoto);
-        TextView tvDetailTopic = findViewById(R.id.tvDetailTopic);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Детали заметки");
+        }
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
+
+        TextView tvSubject = findViewById(R.id.tvDetailSubject);
+        TextView tvTopic = findViewById(R.id.tvDetailTopic);
+        TextView tvAuthor = findViewById(R.id.tvDetailAuthor);
+        TextView tvDate = findViewById(R.id.tvDetailDate);
+        RecyclerView rvImages = findViewById(R.id.rvDetailImages);
 
         Note note = (Note) getIntent().getSerializableExtra("note_data");
 
         if (note != null) {
-            tvDetailTopic.setText(note.getTopic());
-            
-            // Формируем полную ссылку на картинку с проверкой на дублирование префикса
-            String rawImageUrl = note.getImageUrl();
-            String fullUrl = (rawImageUrl != null && rawImageUrl.startsWith("http")) 
-                    ? rawImageUrl 
-                    : "http://192.168.0.104:8000/uploads/" + rawImageUrl;
+            tvSubject.setText(note.getSubject());
+            tvTopic.setText(note.getTopic());
+            tvAuthor.setText(note.getAuthorName() != null ? note.getAuthorName() : "Неизвестен");
+            tvDate.setText(note.getFormattedDate());
 
-            Log.d("GLIDE_DEBUG", "Загружаю по ссылке: " + fullUrl);
-            
-            // Используем Glide для загрузки картинки
-            Glide.with(this)
+            List<String> images = note.getImages();
+            if (images != null && !images.isEmpty()) {
+                rvImages.setLayoutManager(new LinearLayoutManager(this));
+                rvImages.setAdapter(new DetailImagesAdapter(images));
+            }
+        }
+    }
+
+    private static class DetailImagesAdapter extends RecyclerView.Adapter<DetailImagesAdapter.ViewHolder> {
+        private final List<String> imageUrls;
+
+        DetailImagesAdapter(List<String> imageUrls) {
+            this.imageUrls = imageUrls;
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_detail_image, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            String path = imageUrls.get(position);
+            String fullUrl = path.startsWith("http") ? path : BASE_URL + path;
+
+            Glide.with(holder.itemView.getContext())
                     .load(fullUrl)
-                    .placeholder(android.R.drawable.ic_menu_gallery) // Плейсхолдер загрузки
-                    .error(android.R.drawable.stat_notify_error)    // Плейсхолдер ошибки
-                    .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
-                        @Override
-                        public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {
-                            Log.e("GLIDE_DEBUG", "Ошибка загрузки: " + (e != null ? e.getMessage() : "unknown error"), e);
-                            return false;
-                        }
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_report_image)
+                    .into(holder.imageView);
+        }
 
-                        @Override
-                        public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
-                            Log.d("GLIDE_DEBUG", "Загрузка успешна: " + fullUrl);
-                            return false;
-                        }
-                    })
-                    .into(ivDetailPhoto);
+        @Override
+        public int getItemCount() {
+            return imageUrls.size();
+        }
+
+        static class ViewHolder extends RecyclerView.ViewHolder {
+            ImageView imageView;
+            ViewHolder(View itemView) {
+                super(itemView);
+                imageView = itemView.findViewById(R.id.ivFullImage);
+            }
         }
     }
 }

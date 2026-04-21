@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/tvRegisterTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:layout_marginBottom="30dp"
+        android:text="Регистрация"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black" />
+
+    <EditText
+        android:id="@+id/etRegisterLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Логин"
+        android:inputType="text"
+        android:autofillHints="username"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/etRegisterPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Пароль"
+        android:inputType="textPassword"
+        android:autofillHints="password"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/etRegisterGrade"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Класс"
+        android:inputType="text"
+        android:importantForAutofill="no"
+        android:layout_marginBottom="12dp" />
+
+    <AutoCompleteTextView
+        android:id="@+id/actvRegisterSchool"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Школа"
+        android:inputType="text"
+        android:importantForAutofill="no"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnRegister"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Зарегистрироваться"
+        android:padding="12dp"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/tvGoToLogin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="Уже есть аккаунт? Войти"
+        android:textColor="@android:color/holo_blue_dark"
+        android:textSize="14sp" />
+
+</LinearLayout>

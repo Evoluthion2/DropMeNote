@@ -7,4 +7,12 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Darker/Deep Palette -->
+    <color name="app_background">#1E272E</color> <!-- Глубокий темно-серый -->
+    <color name="card_background">#2F3640</color> <!-- Графитовый для карточек -->
+    <color name="text_primary">#F5F6FA</color> <!-- Почти белый для заголовков -->
+    <color name="text_secondary">#DCDDE1</color> <!-- Светло-серый для текста -->
+    <color name="text_muted">#7F8C8D</color> <!-- Приглушенный для дат -->
+    <color name="accent_blue">#00A8FF</color> <!-- Акцентный голубой -->
 </resources>

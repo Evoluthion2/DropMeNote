@@ -1,85 +1,48 @@
 package com.example.dmnapp;
 
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.ProgressBar;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.fragment.app.Fragment;
 
-import com.example.dmnapp.adapters.NotesAdapter;
-import com.example.dmnapp.models.Note;
-import com.example.dmnapp.network.RetrofitClient;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import com.example.dmnapp.fragments.NotesFragment;
+import com.example.dmnapp.fragments.ProfileFragment;
+import com.example.dmnapp.fragments.UploadFragment;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class NotesListActivity extends AppCompatActivity {
-
-    private RecyclerView rvNotes;
-    private ProgressBar progressBar;
-    private SwipeRefreshLayout swipeRefreshLayout;
-    private NotesAdapter adapter;
-    private List<Note> noteList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notes_list);
 
-        rvNotes = findViewById(R.id.rvNotes);
-        progressBar = findViewById(R.id.progressBar);
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setOnItemSelectedListener(item -> {
+            Fragment selectedFragment = null;
+            int itemId = item.getItemId();
 
-        rvNotes.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new NotesAdapter(noteList, note -> {
-            Intent intent = new Intent(NotesListActivity.this, DetailActivity.class);
-            intent.putExtra("note_data", note);
-            startActivity(intent);
+            if (itemId == R.id.nav_notes) {
+                selectedFragment = new NotesFragment();
+            } else if (itemId == R.id.nav_upload) {
+                selectedFragment = new UploadFragment();
+            } else if (itemId == R.id.nav_profile) {
+                selectedFragment = new ProfileFragment();
+            }
+
+            if (selectedFragment != null) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, selectedFragment)
+                        .commit();
+            }
+            return true;
         });
-        rvNotes.setAdapter(adapter);
 
-        swipeRefreshLayout.setOnRefreshListener(this::fetchNotes);
-
-        fetchNotes();
-    }
-
-    private void fetchNotes() {
-        if (!swipeRefreshLayout.isRefreshing()) {
-            progressBar.setVisibility(View.VISIBLE);
+        // Установка фрагмента по умолчанию при первом запуске
+        if (savedInstanceState == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, new NotesFragment())
+                    .commit();
         }
-        RetrofitClient.getApiService().getNotes().enqueue(new Callback<List<Note>>() {
-            @Override
-            public void onResponse(Call<List<Note>> call, Response<List<Note>> response) {
-                progressBar.setVisibility(View.GONE);
-                swipeRefreshLayout.setRefreshing(false);
-                if (response.isSuccessful() && response.body() != null) {
-                    noteList.clear();
-                    noteList.addAll(response.body());
-                    adapter.notifyDataSetChanged();
-                    if (noteList.isEmpty()) {
-                        Toast.makeText(NotesListActivity.this, "Конспектов пока нет", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    Toast.makeText(NotesListActivity.this, "Ошибка загрузки: " + response.code(), Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<Note>> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                swipeRefreshLayout.setRefreshing(false);
-                Toast.makeText(NotesListActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
     }
 }
