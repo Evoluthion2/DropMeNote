@@ -6,16 +6,50 @@
     android:layout_height="match_parent"
     android:background="@color/app_background">
 
-    <ImageButton
-        android:id="@+id/btnFilter"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/llFilterContainer"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_search"
-        android:contentDescription="Фильтр"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <CheckBox
+            android:id="@+id/cbMySchool"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Моя школа"
+            android:textColor="@color/text_primary"
+            android:layoutDirection="rtl" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btnSort"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_sort"
+            app:tint="@color/accent_blue"
+            android:contentDescription="Сортировка" />
+
+        <ImageButton
+            android:id="@+id/btnFilter"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_search"
+            app:tint="@color/accent_blue"
+            android:contentDescription="Фильтр" />
+
+    </LinearLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
@@ -23,7 +57,7 @@
         android:layout_height="0dp"
         android:background="@color/app_background"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnFilter">
+        app:layout_constraintTop_toBottomOf="@id/llFilterContainer">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvNotes"

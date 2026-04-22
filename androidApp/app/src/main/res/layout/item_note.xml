@@ -31,12 +31,13 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/llAuthorInfo"
             app:layout_constraintStart_toEndOf="@id/ivNotePreview"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Математика" />
@@ -47,49 +48,100 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginTop="4dp"
+            android:layout_marginEnd="8dp"
             android:ellipsize="end"
             android:maxLines="2"
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/llAuthorInfo"
             app:layout_constraintStart_toEndOf="@id/ivNotePreview"
             app:layout_constraintTop_toBottomOf="@id/tvNoteSubject"
             tools:text="Производная функции и её применение в физике" />
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/llAuthorInfo"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="8dp"
+            android:gravity="end"
+            android:orientation="vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_person"
+                    app:tint="@color/text_secondary" />
+
+                <TextView
+                    android:id="@+id/tvNoteAuthor"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10sp"
+                    tools:text="Иван Иванов" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llDateInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_calendar"
+                    app:tint="@color/text_muted" />
+
+                <TextView
+                    android:id="@+id/tvNoteDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/text_muted"
+                    android:textSize="10sp"
+                    tools:text="21.04.2026" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/llUpvote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_upvote_button"
             android:gravity="center_vertical"
             android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/ivNotePreview"
-            app:layout_constraintTop_toBottomOf="@id/tvNoteTopic"
-            app:layout_constraintVertical_bias="1.0">
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ImageView
+                android:id="@+id/ivUpvote"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_arrow_upvote"
+                app:tint="@color/text_muted" />
 
             <TextView
-                android:id="@+id/tvNoteAuthor"
+                android:id="@+id/tvNoteRating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                tools:text="Иван Иванов" />
-
-            <View
-                android:layout_width="4dp"
-                android:layout_height="4dp"
-                android:layout_marginHorizontal="8dp"
-                android:background="@drawable/dot_separator" />
-
-            <TextView
-                android:id="@+id/tvNoteDate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_muted"
-                android:textSize="12sp"
-                tools:text="21.04.2026" />
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="125" />
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

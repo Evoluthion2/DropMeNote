@@ -1,189 +1,201 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query, Request
 from fastapi.staticfiles import StaticFiles
-import sqlite3
+from sqlalchemy.orm import Session
 import os
 import uuid
-from datetime import datetime
-from typing import List
-import bcrypt
 import shutil
+from typing import List, Optional
+
+# Импортируем модели, схемы и настройки БД
+import models
+import schemas
+import crud
+from database import SessionLocal, engine
+
+# Создаем таблицы в базе данных
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# --- Middleware для логирования ---
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"DEBUG: Incoming request {request.method} to {request.url}")
+    response = await call_next(request)
+    return response
 
 # Папка для загрузок
 UPLOAD_DIR = "uploads"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="static_uploads")
+# Примонтируем папку со статикой
+app.mount("/static", StaticFiles(directory="."), name="static")
 
-# --- Настройка и инициализация БД ---
 
+# --- Зависимость для получения сессии БД ---
 def get_db():
-    conn = sqlite3.connect('notes_v2.db', check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    conn = sqlite3.connect('notes_v2.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            subject TEXT,
-            topic TEXT,
-            user_id INTEGER,
-            grade TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS note_images (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            note_id INTEGER,
-            image_url TEXT,
-            FOREIGN KEY (note_id) REFERENCES notes (id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# --- ЭНДПОИНТЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ (без изменений) ---
-
-@app.post("/register")
-async def register(username: str = Form(...), password: str = Form(...)):
-    salt = bcrypt.gensalt()
-    password_bytes = password.encode('utf-8')
-    hash_pw = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
-
-    conn = get_db()
-    cursor = conn.cursor()
+    db = SessionLocal()
     try:
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hash_pw))
-        conn.commit()
-        return {"status": "success", "message": "User registered"}
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Username already exists")
+        yield db
     finally:
-        conn.close()
+        db.close()
 
-@app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    conn.close()
+# --- ЭНДПОИНТЫ ДЛЯ АУТЕНТИФИКАЦИИ ---
 
-    if user:
-        password_bytes = password.encode('utf-8')
-        hashed_bytes = user['password'].encode('utf-8')
-        if bcrypt.checkpw(password_bytes, hashed_bytes):
-            return {"id": user['id'], "username": user['username']}
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+@app.post("/register", response_model=schemas.UserResponse)
+async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    print(f"DEBUG: Registering user with data: {user.dict()}")
+    db_user = crud.get_user_by_username(db, username=user.username)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    return crud.create_user(db=db, username=user.username, password=user.password, school=user.school)
+
+@app.post("/login", response_model=schemas.UserResponse)
+async def login(
+    username: str = Form(...), 
+    password: str = Form(...), 
+    device_id: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = crud.authenticate_user(db, username=username, password=password, device_id=device_id)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+        )
+    return user
+
+@app.get("/auth/me", response_model=schemas.UserResponse)
+async def read_users_me(device_id: str = Query(...), db: Session = Depends(get_db)):
+    users = db.query(models.User).all()
+    print(f"DEBUG: Current device IDs in DB: {[u.last_device_id for u in users]}")
+
+    user = crud.get_user_by_device_id(db, device_id=device_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Device not registered")
+    
+    print(f"Auth success for device: {device_id}, User: {user.username}")
+    return user
+
+@app.post("/logout")
+async def logout(user_id: int = Form(...), db: Session = Depends(get_db)):
+    if crud.logout_user(db, user_id=user_id):
+        return {"status": "success", "message": "User logged out"}
+    raise HTTPException(status_code=404, detail="User not found")
+
 
 # --- ЭНДПОИНТЫ ДЛЯ КОНСПЕКТОВ ---
 
-@app.post("/notes/")
+@app.post("/notes/", response_model=schemas.NoteResponse)
 async def create_note(
-        subject: str = Form(...),
-        topic: str = Form(...),
-        user_id: int = Form(...),
-        grade: str = Form(...),
-        images: List[UploadFile] = File(...)
+    subject: str = Form(...),
+    topic: str = Form(...),
+    user_id: int = Form(...),
+    grade: int = Form(...),
+    images: List[UploadFile] = File(...),
+    db: Session = Depends(get_db)
 ):
-    conn = get_db()
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO notes (subject, topic, user_id, grade) VALUES (?, ?, ?, ?)",
-            (subject, topic, user_id, grade)
-        )
-        note_id = cursor.lastrowid
+    image_urls = []
+    for image in images:
+        file_ext = image.filename.split('.')[-1]
+        filename = f"{uuid.uuid4()}.{file_ext}"
+        file_path = os.path.join(UPLOAD_DIR, filename)
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
         
-        image_urls = []
-        for img in images:
-            # Создаем уникальное имя файла, чтобы избежать конфликтов
-            file_ext = img.filename.split('.')[-1]
-            filename = f"{note_id}_{uuid.uuid4()}.{file_ext}"
-            file_path = os.path.join(UPLOAD_DIR, filename)
-            
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(img.file, buffer)
-            
-            cursor.execute(
-                "INSERT INTO note_images (note_id, image_url) VALUES (?, ?)",
-                (note_id, filename) # Сохраняем только имя файла
+        image_urls.append(f"static/uploads/{filename}")
+
+    note_data = schemas.NoteCreate(grade=grade, subject=subject, topic=topic)
+    db_note = crud.create_note_with_images(db=db, note=note_data, user_id=user_id, image_urls=image_urls)
+    
+    # Формируем правильный ответ
+    return schemas.NoteResponse(
+        id=db_note.id,
+        grade=db_note.grade,
+        subject=db_note.subject,
+        topic=db_note.topic,
+        author=db_note.author.username if db_note.author else "Unknown",
+        date=db_note.created_at.strftime("%Y-%m-%d %H:%M"),
+        images=[image.url for image in db_note.images],
+        upvotes_count=0, # Новый конспект, лайков 0
+        is_upvoted=False # Создатель не может лайкнуть свой конспект при создании
+    )
+
+@app.get("/notes/", response_model=List[schemas.NoteResponse])
+def get_all_notes(
+    device_id: Optional[str] = None,
+    sort: Optional[str] = "newest", 
+    subject: Optional[str] = None,
+    topic: Optional[str] = None,
+    school: Optional[str] = None,
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    user = None
+    if device_id:
+        user = crud.get_user_by_device_id(db, device_id=device_id)
+
+    notes_from_db = crud.get_notes(
+        db, user_id=user.id if user else None, skip=skip, limit=limit, sort=sort, subject=subject, topic=topic, school=school
+    )
+    
+    response_notes = []
+    for note in notes_from_db:
+        is_upvoted = False
+        if user:
+            is_upvoted = any(upvoter.id == user.id for upvoter in note.upvoted_by_users)
+
+        response_notes.append(
+            schemas.NoteResponse(
+                id=note.id,
+                grade=note.grade,
+                subject=note.subject,
+                topic=note.topic,
+                author=note.author.username if note.author else "Unknown",
+                date=note.created_at.strftime("%Y-%m-%d %H:%M"),
+                images=[image.url for image in note.images],
+                upvotes_count=len(note.upvoted_by_users),
+                is_upvoted=is_upvoted
             )
-            image_urls.append(f"/{UPLOAD_DIR}/{filename}")
+        )
+    return response_notes
 
-        conn.commit()
-        return {"status": "success", "note_id": note_id, "images": image_urls}
-    finally:
-        conn.close()
+@app.get("/notes/{note_id}", response_model=schemas.NoteResponse)
+def get_note_details(note_id: int, device_id: Optional[str] = None, db: Session = Depends(get_db)):
+    note = crud.get_note(db, note_id=note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
 
-@app.get("/notes/")
-def get_all_notes():
-    """
-    Возвращает список всех конспектов, объединяя данные о конспекте
-    со списком его изображений.
-    """
-    conn = get_db()
-    cursor = conn.cursor()
+    user = None
+    if device_id:
+        user = crud.get_user_by_device_id(db, device_id=device_id)
 
-    # Используем LEFT JOIN, чтобы получить все конспекты, даже те, у которых нет картинок
-    query = """
-        SELECT
-            n.id,
-            n.subject,
-            n.topic,
-            n.grade,
-            n.created_at,
-            u.username as author,
-            ni.image_url
-        FROM
-            notes n
-        LEFT JOIN
-            note_images ni ON n.id = ni.note_id
-        LEFT JOIN
-            users u ON n.user_id = u.id
-        ORDER BY
-            n.created_at DESC;
-    """
-    cursor.execute(query)
-    rows = cursor.fetchall()
-    conn.close()
+    is_upvoted = False
+    if user:
+        is_upvoted = any(upvoter.id == user.id for upvoter in note.upvoted_by_users)
 
-    # Группируем результаты по ID конспекта
-    notes_dict = {}
-    base_url = "static/uploads" # Используем путь, который ожидает клиент
+    return schemas.NoteResponse(
+        id=note.id,
+        grade=note.grade,
+        subject=note.subject,
+        topic=note.topic,
+        author=note.author.username if note.author else "Unknown",
+        date=note.created_at.strftime("%Y-%m-%d %H:%M"),
+        images=[image.url for image in note.images],
+        upvotes_count=len(note.upvoted_by_users),
+        is_upvoted=is_upvoted
+    )
 
-    for row in rows:
-        note_id = row['id']
-        if note_id not in notes_dict:
-            notes_dict[note_id] = {
-                "id": note_id,
-                "subject": row['subject'],
-                "topic": row['topic'],
-                "grade": row['grade'],
-                "author": row['author'],
-                "created_at": row['created_at'],
-                "images": [] # Создаем пустой список для изображений
-            }
-        
-        # Добавляем URL изображения, если оно есть
-        if row['image_url']:
-            notes_dict[note_id]['images'].append(f"{base_url}/{row['image_url']}")
+@app.post("/notes/{note_id}/upvote", response_model=schemas.UpvoteResponse)
+async def upvote_note(note_id: int, device_id: str = Query(...), db: Session = Depends(get_db)):
+    user = crud.get_user_by_device_id(db, device_id=device_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not recognized for this device")
 
-    # Преобразуем словарь обратно в список
-    return list(notes_dict.values())
+    response = crud.toggle_note_upvote(db=db, note_id=note_id, user_id=user.id)
+    if response is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return response

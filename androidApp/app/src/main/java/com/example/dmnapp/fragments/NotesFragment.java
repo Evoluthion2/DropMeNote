@@ -2,8 +2,10 @@ package com.example.dmnapp.fragments;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -48,6 +50,12 @@ public class NotesFragment extends Fragment {
     private List<Note> noteList = new ArrayList<>();
     private List<Note> filteredList = new ArrayList<>();
     private ImageButton btnFilter;
+    private ImageButton btnSort;
+    private android.widget.CheckBox cbMySchool;
+    private boolean filterBySchool = false;
+    private String userSchool = null;
+    private String currentSort = "newest";
+    private String currentSubject = null;
 
     @Nullable
     @Override
@@ -58,6 +66,19 @@ public class NotesFragment extends Fragment {
         progressBar = view.findViewById(R.id.progressBar);
         swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout);
         btnFilter = view.findViewById(R.id.btnFilter);
+        btnSort = view.findViewById(R.id.btnSort);
+        cbMySchool = view.findViewById(R.id.cbMySchool);
+
+        android.content.SharedPreferences prefs = requireContext().getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE);
+        userSchool = prefs.getString("school", null);
+        
+        // Всегда отображаем "Моя школа", а не название конкретной школы
+        cbMySchool.setText("Моя школа");
+
+        cbMySchool.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            filterBySchool = isChecked;
+            fetchNotes();
+        });
 
         rvNotes.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new NotesAdapter(filteredList, note -> {
@@ -70,11 +91,57 @@ public class NotesFragment extends Fragment {
         rvNotes.setAdapter(adapter);
 
         btnFilter.setOnClickListener(v -> showFilterDialog());
+        btnSort.setOnClickListener(v -> showSortMenu());
         swipeRefreshLayout.setOnRefreshListener(this::fetchNotes);
 
         fetchNotes();
 
+        getParentFragmentManager().setFragmentResultListener("note_update", getViewLifecycleOwner(), (requestKey, result) -> {
+            Note updatedNote = (Note) result.getSerializable("updated_note");
+            if (updatedNote != null) {
+                for (int i = 0; i < noteList.size(); i++) {
+                    if (noteList.get(i).getId() == updatedNote.getId()) {
+                        noteList.set(i, updatedNote);
+                        break;
+                    }
+                }
+                for (int i = 0; i < filteredList.size(); i++) {
+                    if (filteredList.get(i).getId() == updatedNote.getId()) {
+                        filteredList.set(i, updatedNote);
+                        adapter.notifyItemChanged(i);
+                        break;
+                    }
+                }
+            }
+        });
+
         return view;
+    }
+
+    private void showSortMenu() {
+        android.widget.PopupMenu popup = new android.widget.PopupMenu(getContext(), btnSort);
+        popup.getMenu().add(0, 0, 0, "Сначала новые");
+        popup.getMenu().add(0, 1, 1, "Сначала старые");
+        popup.getMenu().add(0, 2, 2, "Сначала популярные");
+        popup.getMenu().add(0, 3, 3, "Сначала не популярные");
+
+        popup.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 0: currentSort = "newest"; break;
+                case 1: currentSort = "oldest"; break;
+                case 2: currentSort = "popular"; break;
+                case 3: currentSort = "unpopular"; break;
+            }
+            fetchNotes();
+            return true;
+        });
+        popup.show();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        fetchNotes();
     }
 
     private void showFilterDialog() {
@@ -187,26 +254,20 @@ public class NotesFragment extends Fragment {
     }
 
     private void applyFilter(String subject, String topic) {
-        filteredList.clear();
-        for (Note note : noteList) {
-            boolean matchesSubject = subject.equals("Все предметы") || (note.getSubject() != null && note.getSubject().trim().equalsIgnoreCase(subject.trim()));
-            boolean matchesTopic = topic.equals("Все темы") || (note.getTopic() != null && note.getTopic().trim().equalsIgnoreCase(topic.trim()));
-
-            if (matchesSubject && matchesTopic) {
-                filteredList.add(note);
-            }
-        }
-        adapter.notifyDataSetChanged();
-        if (filteredList.isEmpty()) {
-            Toast.makeText(getContext(), "Ничего не найдено", Toast.LENGTH_SHORT).show();
-        }
+        currentSubject = subject.equals("Все предметы") ? null : subject;
+        fetchNotes();
     }
 
     private void fetchNotes() {
         if (!swipeRefreshLayout.isRefreshing()) {
             progressBar.setVisibility(View.VISIBLE);
         }
-        RetrofitClient.getApiService().getNotes().enqueue(new Callback<List<Note>>() {
+        
+        String deviceId = Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+        Log.d("DEBUG_RESUME", "Fetching notes with ID: " + deviceId);
+        
+        String schoolParam = filterBySchool ? userSchool : null;
+        RetrofitClient.getApiService().getNotes(currentSubject, currentSort, schoolParam, deviceId).enqueue(new Callback<List<Note>>() {
             @Override
             public void onResponse(Call<List<Note>> call, Response<List<Note>> response) {
                 if (!isAdded()) return;

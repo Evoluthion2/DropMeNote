@@ -12,6 +12,12 @@ public class User {
     @SerializedName("rating")
     private float rating;
 
+    @SerializedName("school")
+    private String school;
+
+    @SerializedName("grade")
+    private String grade;
+
     public User(int id, String username, float rating) {
         this.id = id;
         this.username = username;
@@ -25,4 +31,8 @@ public class User {
     public void setUsername(String username) { this.username = username; }
     public float getRating() { return rating; }
     public void setRating(float rating) { this.rating = rating; }
+    public String getSchool() { return school; }
+    public void setSchool(String school) { this.school = school; }
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
 }

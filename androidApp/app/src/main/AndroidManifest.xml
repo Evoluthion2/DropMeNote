@@ -19,8 +19,10 @@
         android:usesCleartextTraffic="true">
 
         <activity
-            android:name=".LoginActivity"
-            android:exported="true">
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.DMNapp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -28,10 +30,8 @@
         </activity>
 
         <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.DMNapp" />
+            android:name=".LoginActivity"
+            android:exported="true" />
 
 
 

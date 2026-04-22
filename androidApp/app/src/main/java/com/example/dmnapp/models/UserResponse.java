@@ -12,6 +12,9 @@ public class UserResponse {
     @SerializedName("status")
     private String status;
 
+    @SerializedName("school")
+    private String school;
+
     public int getId() {
         return id;
     }
@@ -34,5 +37,13 @@ public class UserResponse {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getSchool() {
+        return school;
+    }
+
+    public void setSchool(String school) {
+        this.school = school;
     }
 }

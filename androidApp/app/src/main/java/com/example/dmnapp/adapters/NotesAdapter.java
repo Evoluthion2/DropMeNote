@@ -19,6 +19,7 @@ import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.example.dmnapp.R;
 import com.example.dmnapp.models.Note;
+import com.example.dmnapp.models.UpvoteResponse;
 
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.model.GlideUrl;
@@ -28,7 +29,14 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.provider.Settings;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+
+import com.example.dmnapp.network.RetrofitClient;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHolder> {
 
@@ -63,12 +71,15 @@ public class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHold
         return notes.size();
     }
 
-    static class NoteViewHolder extends RecyclerView.ViewHolder {
+    public class NoteViewHolder extends RecyclerView.ViewHolder {
         private final ImageView ivPreview;
         private final TextView tvSubject;
         private final TextView tvTopic;
         private final TextView tvAuthor;
         private final TextView tvDate;
+        private final ImageView ivUpvote;
+        private final TextView tvRating;
+        private final View llUpvote;
 
         public NoteViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -77,23 +88,44 @@ public class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHold
             tvTopic = itemView.findViewById(R.id.tvNoteTopic);
             tvAuthor = itemView.findViewById(R.id.tvNoteAuthor);
             tvDate = itemView.findViewById(R.id.tvNoteDate);
+            ivUpvote = itemView.findViewById(R.id.ivUpvote);
+            tvRating = itemView.findViewById(R.id.tvNoteRating);
+            llUpvote = itemView.findViewById(R.id.llUpvote);
         }
 
         public void bind(final Note note, final OnNoteClickListener listener) {
             tvSubject.setText(note.getSubject());
             tvTopic.setText(note.getTopic());
-            tvAuthor.setText(note.getAuthorName() != null ? note.getAuthorName() : "Неизвестен");
+            tvAuthor.setText(note.getAuthor() != null ? note.getAuthor() : "Неизвестен");
             tvDate.setText(note.getFormattedDate());
+            
+            // Используем новое поле upvotesCount для рейтинга
+            tvRating.setText(String.valueOf(note.getUpvotesCount()));
+
+            Context context = itemView.getContext();
+            String deviceId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+
+            // Состояние апвоута (теперь привязано к аккаунту через поле isUpvoted)
+            boolean isUpvoted = note.isUpvoted();
+            int activeColor = ContextCompat.getColor(context, R.color.accent_blue);
+            int inactiveColor = ContextCompat.getColor(context, R.color.text_muted);
+            
+            ivUpvote.setColorFilter(isUpvoted ? activeColor : inactiveColor);
+            tvRating.setTextColor(isUpvoted ? activeColor : inactiveColor);
+            llUpvote.setSelected(isUpvoted);
+
+            // Апвоут в списке теперь только индикатор, клик не обрабатываем здесь
+            llUpvote.setOnClickListener(null);
+            llUpvote.setClickable(false);
+            llUpvote.setFocusable(false);
 
             List<String> images = note.getImages();
             if (images != null && !images.isEmpty()) {
                 String rawPath = images.get(0);
                 String fileName = rawPath.substring(rawPath.lastIndexOf("/") + 1);
-                String fullUrl = "http://192.168.0.104:8000/static/uploads/" + fileName;
+                String fullUrl = BASE_URL + "static/uploads/" + fileName;
 
                 Log.d("GLIDE_DEBUG", "Final Guaranteed URL: " + fullUrl);
-
-                Context context = itemView.getContext();
                 
                 // Настройка OkHttpClient с увеличенными тайм-аутами
                 OkHttpClient okHttpClient = new OkHttpClient.Builder()

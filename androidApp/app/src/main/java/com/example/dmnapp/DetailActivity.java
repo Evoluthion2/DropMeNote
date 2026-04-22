@@ -46,7 +46,7 @@ public class DetailActivity extends AppCompatActivity {
         if (note != null) {
             tvSubject.setText(note.getSubject());
             tvTopic.setText(note.getTopic());
-            tvAuthor.setText(note.getAuthorName() != null ? note.getAuthorName() : "Неизвестен");
+            tvAuthor.setText(note.getAuthor() != null ? note.getAuthor() : "Неизвестен");
             tvDate.setText(note.getFormattedDate());
 
             List<String> images = note.getImages();
