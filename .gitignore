@@ -239,6 +239,8 @@ db.sqlite
 
 # Folder for uploaded notes (если ты хранишь фото в папке)
 /uploads/
+server/uploads
+server/uploads/
 
 # Python caching
 __pycache__/
