@@ -232,6 +232,19 @@ env/
 *.sqlite3
 db.sqlite
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Folder for uploaded notes (если ты хранишь фото в папке)
+/uploads/
+
+# Python caching
+__pycache__/
+*.py[cod]
+.env
+
 # Секреты и настройки
 .env
 
