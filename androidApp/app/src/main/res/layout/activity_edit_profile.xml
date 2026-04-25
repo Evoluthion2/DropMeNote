@@ -4,51 +4,48 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/app_background"
-    android:gravity="center_horizontal"
     android:orientation="vertical"
     android:padding="24dp">
 
-    <ImageView
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_marginTop="60dp"
-        android:src="@drawable/ic_launcher_foreground"
-        app:tint="@color/accent_blue" />
-
     <TextView
-        android:id="@+id/tvRegisterTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="40dp"
-        android:text="Регистрация"
+        android:text="Настройки аккаунта"
         android:textColor="@color/text_primary"
-        android:textSize="28sp"
-        android:textStyle="bold" />
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp"/>
 
-    <EditText
-        android:id="@+id/etRegisterLogin"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginBottom="16dp"
-        android:background="@drawable/bg_input_field"
-        android:hint="Логин"
-        android:inputType="text"
-        android:paddingHorizontal="16dp"
-        android:textColor="@color/text_primary"
-        android:textColorHint="@color/text_muted" />
+        android:layout_height="wrap_content"
+        android:hint="Имя пользователя"
+        app:boxStrokeColor="@color/accent_blue"
+        android:layout_marginBottom="16dp">
 
-    <EditText
-        android:id="@+id/etRegisterPassword"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etUsername"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilNewPassword"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginBottom="16dp"
-        android:background="@drawable/bg_input_field"
-        android:hint="Пароль"
-        android:inputType="textPassword"
-        android:paddingHorizontal="16dp"
-        android:textColor="@color/text_primary"
-        android:textColorHint="@color/text_muted" />
+        android:layout_height="wrap_content"
+        android:hint="Новый пароль"
+        app:boxStrokeColor="@color/accent_blue"
+        android:layout_marginBottom="32dp"
+        app:passwordToggleEnabled="true">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etNewPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:textColor="@color/text_primary"/>
+    </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
         android:layout_width="match_parent"
@@ -87,24 +84,14 @@
         android:entries="@array/grades_array" />
 
     <Button
-        android:id="@+id/btnRegister"
+        android:id="@+id/btnSave"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:backgroundTint="@color/accent_blue"
-        android:text="Создать аккаунт"
+        android:text="Сохранить"
         android:textAllCaps="false"
         android:textSize="16sp"
         android:textStyle="bold"
-        app:cornerRadius="12dp" />
-
-    <TextView
-        android:id="@+id/tvGoToLogin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:padding="8dp"
-        android:text="Уже есть аккаунт? Войти"
-        android:textColor="@color/accent_blue"
-        android:textSize="14sp" />
+        app:cornerRadius="12dp"
+        android:backgroundTint="@color/accent_blue"/>
 
 </LinearLayout>

@@ -47,6 +47,11 @@
             android:name=".DetailActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".EditProfileActivity"
+            android:exported="false"
+            android:label="Настройки аккаунта" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.example.dmnapp.provider"

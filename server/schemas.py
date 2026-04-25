@@ -86,6 +86,7 @@ class UserCreate(UserBase):
     """
     password: str
     school: Optional[str] = None
+    grade: Optional[int] = None
 
 class User(UserBase):
     """
@@ -93,6 +94,7 @@ class User(UserBase):
     """
     id: int
     school: Optional[str]
+    grade: Optional[int]
     rating: float
     created_at: datetime
     notes: list[Note] = []
@@ -108,6 +110,13 @@ class UserResponse(BaseModel):
     id: int
     username: str
     school: Optional[str]
+    grade: Optional[int]
 
     class Config:
         orm_mode = True
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    school: Optional[str] = None
+    grade: Optional[int] = None

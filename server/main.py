@@ -1,9 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query, Request
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, Form, HTTPException, Depends, Query, Request
 from sqlalchemy.orm import Session
-import os
-import uuid
-import shutil
 from typing import List, Optional
 
 # Импортируем модели, схемы и настройки БД
@@ -24,15 +20,6 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# Папка для загрузок
-UPLOAD_DIR = "uploads"
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
-
-# Примонтируем папку со статикой
-app.mount("/static", StaticFiles(directory="."), name="static")
-
-
 # --- Зависимость для получения сессии БД ---
 def get_db():
     db = SessionLocal()
@@ -49,7 +36,7 @@ async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
-    return crud.create_user(db=db, username=user.username, password=user.password, school=user.school)
+    return crud.create_user(db=db, user=user)
 
 @app.post("/login", response_model=schemas.UserResponse)
 async def login(
@@ -68,9 +55,6 @@ async def login(
 
 @app.get("/auth/me", response_model=schemas.UserResponse)
 async def read_users_me(device_id: str = Query(...), db: Session = Depends(get_db)):
-    users = db.query(models.User).all()
-    print(f"DEBUG: Current device IDs in DB: {[u.last_device_id for u in users]}")
-
     user = crud.get_user_by_device_id(db, device_id=device_id)
     if not user:
         raise HTTPException(status_code=401, detail="Device not registered")
@@ -84,6 +68,26 @@ async def logout(user_id: int = Form(...), db: Session = Depends(get_db)):
         return {"status": "success", "message": "User logged out"}
     raise HTTPException(status_code=404, detail="User not found")
 
+@app.put("/users/me", response_model=schemas.UserResponse)
+async def update_current_user(
+    user_update: schemas.UserUpdate,
+    device_id: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    current_user = crud.get_user_by_device_id(db, device_id=device_id)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Device not registered")
+
+    if user_update.username:
+        existing_user = crud.get_user_by_username(db, username=user_update.username)
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(status_code=400, detail="Username already taken")
+
+    updated_user = crud.update_user(db=db, user_id=current_user.id, user_update=user_update)
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    return updated_user
 
 # --- ЭНДПОИНТЫ ДЛЯ КОНСПЕКТОВ ---
 
@@ -93,22 +97,11 @@ async def create_note(
     topic: str = Form(...),
     user_id: int = Form(...),
     grade: int = Form(...),
-    images: List[UploadFile] = File(...),
+    images: List[str] = Form(...),
     db: Session = Depends(get_db)
 ):
-    image_urls = []
-    for image in images:
-        file_ext = image.filename.split('.')[-1]
-        filename = f"{uuid.uuid4()}.{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, filename)
-
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        
-        image_urls.append(f"static/uploads/{filename}")
-
     note_data = schemas.NoteCreate(grade=grade, subject=subject, topic=topic)
-    db_note = crud.create_note_with_images(db=db, note=note_data, user_id=user_id, image_urls=image_urls)
+    db_note = crud.create_note_with_images(db=db, note=note_data, user_id=user_id, image_urls=images)
     
     # Формируем правильный ответ
     return schemas.NoteResponse(

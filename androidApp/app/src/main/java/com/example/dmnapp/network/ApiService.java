@@ -4,6 +4,7 @@ import com.example.dmnapp.models.Note;
 import com.example.dmnapp.models.UpvoteResponse;
 import com.example.dmnapp.models.User;
 import com.example.dmnapp.models.UserResponse;
+import com.example.dmnapp.models.UserUpdate;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ import retrofit2.http.Body;
 import retrofit2.http.GET;
 import retrofit2.http.Multipart;
 import retrofit2.http.POST;
+import retrofit2.http.PUT;
 import retrofit2.http.Part;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
@@ -52,6 +54,9 @@ public interface ApiService {
 
     @POST("/auth/logout")
     Call<Void> logout(@Query("device_id") String deviceId);
+
+    @PUT("users/me")
+    Call<UserResponse> updateProfile(@Body UserUpdate body, @Query("device_id") String deviceId);
 
     @GET("/notes/")
     Call<List<Note>> getNotes(

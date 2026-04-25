@@ -10,12 +10,12 @@ public class RegisterRequest {
     private String password;
 
     @SerializedName("grade")
-    private String grade;
+    private int grade;
 
     @SerializedName("school")
     private String school;
 
-    public RegisterRequest(String username, String password, String grade, String school) {
+    public RegisterRequest(String username, String password, int grade, String school) {
         this.username = username;
         this.password = password;
         this.grade = grade;
@@ -25,6 +25,6 @@ public class RegisterRequest {
     // Геттеры для логов
     public String getUsername() { return username; }
     public String getPassword() { return password; }
-    public String getGrade() { return grade; }
+    public int getGrade() { return grade; }
     public String getSchool() { return school; }
 }

@@ -20,15 +20,13 @@ import retrofit2.Response;
 
 public class RegisterActivity extends AppCompatActivity {
 
-    private EditText etLogin, etPassword, etGrade;
-    private Spinner spinnerSchool;
+    private EditText etLogin, etPassword;
+    private Spinner spinnerGrade, spinnerSchool;
     private Button btnRegister;
     private TextView tvGoToLogin;
 
-    private final String[] schools = {
-            "МАОУ \"Лицей № 97 г. Челябинска\"",
-            "МАОУ \"Гимназия №23 Г. Челябинска\""
-    };
+    private final String[] grades = {"5", "6", "7", "8", "9", "10", "11"};
+    private final String[] schools = {"Гимназия №1", "Лицей №2", "Школа №3"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,16 +35,14 @@ public class RegisterActivity extends AppCompatActivity {
 
         etLogin = findViewById(R.id.etRegisterLogin);
         etPassword = findViewById(R.id.etRegisterPassword);
-        etGrade = findViewById(R.id.etRegisterGrade);
-        spinnerSchool = findViewById(R.id.spinner_school);
+        spinnerSchool = findViewById(R.id.spinnerSchool);
+        spinnerGrade = findViewById(R.id.spinnerGrade);
         btnRegister = findViewById(R.id.btnRegister);
         tvGoToLogin = findViewById(R.id.tvGoToLogin);
 
-        // Настройка Spinner для выбора школы
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, schools);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerSchool.setAdapter(adapter);
+        // Адаптеры больше не нужны здесь для настройки данных, 
+        // так как они заданы через android:entries в XML.
+        // Но если нужно кастомизировать внешний вид, можно оставить.
 
         btnRegister.setOnClickListener(v -> registerUser());
 
@@ -58,10 +54,10 @@ public class RegisterActivity extends AppCompatActivity {
     private void registerUser() {
         String username = etLogin.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
-        String grade = etGrade.getText().toString().trim();
         String school = spinnerSchool.getSelectedItem().toString();
+        int grade = Integer.parseInt(spinnerGrade.getSelectedItem().toString());
 
-        if (username.isEmpty() || password.isEmpty() || grade.isEmpty()) {
+        if (username.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show();
             return;
         }

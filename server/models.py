@@ -21,6 +21,7 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     school = Column(String, nullable=True)
+    grade = Column(Integer, nullable=True)
     rating = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_device_id = Column(String, nullable=True, index=True)

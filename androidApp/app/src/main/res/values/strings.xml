@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">DMNapp</string>
+
+    <string-array name="schools_array">
+        <item>МАОУ \"Лицей № 97 г. Челябинска\"</item>
+        <item>МАОУ \"Гимназия №23 г. Челябинска\"</item>
+    </string-array>
+
+    <string-array name="grades_array">
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>11</item>
+    </string-array>
 </resources>

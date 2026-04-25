@@ -15,6 +15,9 @@ public class UserResponse {
     @SerializedName("school")
     private String school;
 
+    @SerializedName("grade")
+    private Integer grade;
+
     public int getId() {
         return id;
     }
@@ -45,5 +48,13 @@ public class UserResponse {
 
     public void setSchool(String school) {
         this.school = school;
+    }
+
+    public Integer getGrade() {
+        return grade;
+    }
+
+    public void setGrade(Integer grade) {
+        this.grade = grade;
     }
 }

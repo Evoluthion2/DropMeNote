@@ -20,11 +20,19 @@ def get_user_by_device_id(db: Session, device_id: str):
 def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.User).offset(skip).limit(limit).all()
 
-def create_user(db: Session, username: str, password: str, school: Optional[str] = None):
-    password_bytes = password.encode('utf-8')
+def create_user(db: Session, user: schemas.UserCreate):
+    password_bytes = user.password.encode('utf-8')
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
-    db_user = models.User(username=username, hashed_password=hashed_password, school=school)
+    
+    school = user.school.strip() if user.school else None
+
+    db_user = models.User(
+        username=user.username, 
+        hashed_password=hashed_password, 
+        school=school,
+        grade=user.grade
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -62,6 +70,35 @@ def logout_user(db: Session, user_id: int):
         db.commit()
         return True
     return False
+
+def update_user(db: Session, user_id: int, user_update: schemas.UserUpdate):
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return None
+
+    update_data = user_update.dict(exclude_unset=True)
+
+    if "password" in update_data and update_data["password"]:
+        password = update_data["password"]
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+        db_user.hashed_password = hashed_password
+    
+    if "username" in update_data and update_data["username"]:
+        db_user.username = update_data["username"]
+        
+    if "school" in update_data:
+        school = update_data["school"]
+        db_user.school = school.strip() if school else None
+
+    if "grade" in update_data:
+        db_user.grade = update_data["grade"]
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
 # --- Функции для работы с Конспектами (Note) ---
 
