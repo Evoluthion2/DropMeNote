@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Form, HTTPException, Depends, Query, Request
+from fastapi import FastAPI, Form, HTTPException, Depends, Query, Request, File, UploadFile
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -12,6 +13,9 @@ from database import SessionLocal, engine
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# --- Статическая директория для изображений ---
+app.mount("/static/uploads", StaticFiles(directory="uploads"), name="static")
 
 # --- Middleware для логирования ---
 @app.middleware("http")
@@ -97,11 +101,11 @@ async def create_note(
     topic: str = Form(...),
     user_id: int = Form(...),
     grade: int = Form(...),
-    images: List[str] = Form(...),
+    images: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
     note_data = schemas.NoteCreate(grade=grade, subject=subject, topic=topic)
-    db_note = crud.create_note_with_images(db=db, note=note_data, user_id=user_id, image_urls=images)
+    db_note = crud.create_note_with_images(db=db, note=note_data, user_id=user_id, image_files=images)
     
     # Формируем правильный ответ
     return schemas.NoteResponse(

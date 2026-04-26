@@ -5,6 +5,14 @@ import bcrypt
 import models
 import schemas
 from typing import List, Optional
+from fastapi import UploadFile
+import shutil
+import os
+
+# --- Директория для сохранения изображений ---
+UPLOAD_DIR = "uploads"
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
 
 # --- Функции для работы с Пользователями (User) ---
 
@@ -141,13 +149,25 @@ def get_notes(
     # 3. Пагинация и выполнение
     return query.offset(skip).limit(limit).all()
 
-def create_note_with_images(db: Session, note: schemas.NoteCreate, user_id: int, image_urls: List[str]):
+def create_note_with_images(db: Session, note: schemas.NoteCreate, user_id: int, image_files: List[UploadFile]):
     db_note = models.Note(**note.dict(), author_id=user_id)
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
 
-    for url in image_urls:
+    for image_file in image_files:
+        # Генерируем уникальное имя файла
+        file_extension = os.path.splitext(image_file.filename)[1]
+        unique_filename = f"{db_note.id}_{image_file.filename}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+        # Сохраняем файл
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image_file.file, buffer)
+
+        # URL для доступа к файлу
+        url = f"/static/uploads/{unique_filename}"
+
         db_image = models.NoteImage(url=url, note_id=db_note.id)
         db.add(db_image)
 
